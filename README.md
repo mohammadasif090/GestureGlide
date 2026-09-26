@@ -6,6 +6,16 @@ GestureGlide is a lightweight Python application that transforms your standard l
 
 ---
 
+## 📸 Demonstration
+
+<p align="center">
+  <img src="assets/demo.png" alt="GestureGlide Live Demonstration" width="750"/>
+</p>
+
+*Real-time spatial tracking HUD showing 21-point joint skeleton, fingertip crosshair, active boundary box, and live telemetry (FPS, index ratio, pinch distance, cursor coordinates).*
+
+---
+
 ## ✨ Features
 
 - **Zero Extra Hardware**: Works with any standard integrated or USB webcam (no leap motion or depth sensors required).
@@ -55,6 +65,8 @@ python main.py
 
 ```
 GestureGlide/
+├── assets/
+│   └── demo.png         # Live demonstration screenshot
 ├── main.py              # Main application loop, HUD rendering, and keyboard handling
 ├── hand_tracker.py      # MediaPipe Tasks HandLandmarker wrapper & auto-downloader
 ├── gesture.py           # Gesture recognition, finger extension ratios & pinch detection

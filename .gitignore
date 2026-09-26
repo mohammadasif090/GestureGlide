@@ -5,3 +5,5 @@ __pycache__/
 calibration.json
 .venv/
 env/
+.vscode/
+.idea/
