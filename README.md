@@ -8,11 +8,12 @@ GestureGlide is a lightweight Python application that transforms your standard l
 
 ## 📸 Demonstration
 
-<p align="center">
-  <img src="assets/demo.gif" alt="GestureGlide Live Demo" width="750"/>
-</p>
+https://github.com/user-attachments/assets/5d2527dc-dfd5-4fbd-a0c2-17d34ea56411
+
 
 *Real-time spatial tracking HUD showing 21-point joint skeleton, fingertip crosshair, active boundary box, and live telemetry (FPS, index ratio, pinch distance, cursor coordinates).*
+
+
 
 <p align="center">
   <a href="https://github.com/mohammadasif090/GestureGlide/raw/main/assets/demo.mp4">
