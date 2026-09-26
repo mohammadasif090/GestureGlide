@@ -9,22 +9,16 @@ GestureGlide is a lightweight Python application that transforms your standard l
 ## 📸 Demonstration
 
 <p align="center">
-  <video src="https://github.com/mohammadasif090/GestureGlide/raw/main/assets/demo.mp4" controls="controls" width="100%" poster="assets/demo.png">
-    Your browser does not support the video tag.
-  </video>
-</p>
-
-<p align="center">
-  <a href="https://github.com/mohammadasif090/GestureGlide/raw/main/assets/demo.mp4">
-    ▶️ <b>Watch the full video demonstration (44s demo)</b>
-  </a>
-</p>
-
-<p align="center">
-  <img src="assets/demo.png" alt="GestureGlide Live Demonstration" width="750"/>
+  <img src="assets/demo.gif" alt="GestureGlide Live Demo" width="750"/>
 </p>
 
 *Real-time spatial tracking HUD showing 21-point joint skeleton, fingertip crosshair, active boundary box, and live telemetry (FPS, index ratio, pinch distance, cursor coordinates).*
+
+<p align="center">
+  <a href="https://github.com/mohammadasif090/GestureGlide/raw/main/assets/demo.mp4">
+    ▶️ <b>Download / Watch Full 1080p Video Recording (assets/demo.mp4)</b>
+  </a>
+</p>
 
 ---
 
@@ -78,6 +72,7 @@ python main.py
 ```
 GestureGlide/
 ├── assets/
+│   ├── demo.gif         # Auto-playing demonstration preview
 │   ├── demo.mp4         # Full demonstration video recording
 │   └── demo.png         # Live demonstration screenshot
 ├── main.py              # Main application loop, HUD rendering, and keyboard handling
