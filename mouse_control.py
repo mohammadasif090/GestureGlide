@@ -106,6 +106,19 @@ class MouseController:
         except Exception:
             return False
 
+    def right_click(self) -> bool:
+        """Perform a right click if cooldown has elapsed."""
+        now = time.time()
+        cooldown = getattr(config, "RIGHT_CLICK_COOLDOWN", 0.5)
+        if now - self._last_click_time < cooldown:
+            return False
+        self._last_click_time = now
+        try:
+            pyautogui.rightClick()
+            return True
+        except Exception:
+            return False
+
     @property
     def screen_size(self) -> tuple[int, int]:
         return (self._screen_w, self._screen_h)

@@ -1,13 +1,16 @@
-"""GestureGlide — Control your mouse cursor by pointing with your finger.
+"""GestureGlide v0.2 — Full Gesture Vocabulary Mouse Control.
 
 Usage:
     python main.py
 
 Controls:
-    - Move index finger to glide cursor across the screen
-    - Pinch thumb + index finger together to click
-    - Press 't' to toggle between Free Tracking and Strict Pointing
-    - Press ESC or 'q' in the debug window or terminal to quit
+    - Point (index extended): Glide cursor
+    - Pinch (thumb + index): Left click
+    - Right pinch (thumb + middle): Right click
+    - Open palm + move up/down: Scroll
+    - Closed fist: Drag & drop
+    - Peace sign (V): Precision mode (fine cursor control)
+    - Press ESC or 'q' in debug window or terminal to quit
 """
 
 import time
@@ -15,18 +18,19 @@ import cv2
 
 import config
 from hand_tracker import HandTracker
-from gesture import is_pointing, get_index_tip_position, is_pinching, get_diagnostics
+from gesture import get_diagnostics
 from mouse_control import MouseController
+from gesture_engine import GestureEngine, GestureType
+from actions import ActionDispatcher
 
 
 def draw_hud(
     frame,
     status: str,
     cursor_pos: tuple[int, int] | None,
-    clicking: bool,
+    actions: dict,
     diag: dict | None,
     fps: float,
-    always_track: bool,
 ):
     """Draw rich HUD overlay on the debug frame."""
     h, w = frame.shape[:2]
@@ -52,11 +56,17 @@ def draw_hud(
         1,
     )
 
-    # 2. Draw Fingertip Crosshair
+    # 2. Draw Fingertip / Palm Crosshair
     if diag is not None:
         tip_x_px = int(diag["tip_pos"][0] * w)
         tip_y_px = int(diag["tip_pos"][1] * h)
-        ring_color = (0, 255, 0) if (diag["is_pointing"] or always_track) else (0, 165, 255)
+        ring_color = (0, 255, 0)
+        if actions.get("precision"):
+            ring_color = (255, 200, 0)
+        elif status == "FIST":
+            ring_color = (0, 140, 255)
+        elif status == "PALM":
+            ring_color = (255, 255, 0)
         cv2.circle(frame, (tip_x_px, tip_y_px), 14, ring_color, 2, lineType=cv2.LINE_AA)
         cv2.circle(frame, (tip_x_px, tip_y_px), 3, ring_color, -1)
 
@@ -66,17 +76,16 @@ def draw_hud(
     cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
 
     # Status text & color
-    if status in ("GLIDING", "POINTING"):
+    if status in ("POINT", "CLICK", "RCLICK", "PALM", "FIST", "PEACE"):
         status_color = (0, 255, 0)
     elif status == "HAND DETECTED":
         status_color = (0, 200, 255)
     else:
         status_color = (0, 0, 255)
 
-    mode_label = "FREE" if always_track else "STRICT"
     cv2.putText(
         frame,
-        f"Status: {status} [{mode_label}]",
+        f"Gesture: {status}",
         (12, 28),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.7,
@@ -97,15 +106,17 @@ def draw_hud(
 
     # Secondary info line
     if diag is not None:
-        idx_txt = f"IndexRatio: {diag['index_ratio']:.2f}"
-        pinch_txt = f"PinchDist: {diag['pinch_dist']:.3f} (click < {config.PINCH_THRESHOLD})"
-        sub_text = f"{idx_txt}  |  {pinch_txt}"
+        fingers_txt = f"Fingers: {diag.get('extended_finger_count', 0)}"
+        idx_txt = f"Idx: {diag['index_ratio']:.2f}"
+        pinch_txt = f"Pinch: {diag['pinch_dist']:.3f}"
+        r_pinch_txt = f"RPinch: {diag.get('right_click_dist', 0.0):.3f}"
+        sub_text = f"{fingers_txt} | {idx_txt} | {pinch_txt} | {r_pinch_txt}"
         cv2.putText(
             frame,
             sub_text,
             (12, 54),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.45,
+            0.42,
             (220, 220, 220),
             1,
         )
@@ -117,38 +128,45 @@ def draw_hud(
                 pos_text,
                 (w - 240, 54),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.48,
+                0.45,
                 (0, 255, 255),
                 1,
             )
 
-    # Click indicator
-    if clicking:
-        cv2.circle(frame, (w - 30, 22), 10, (0, 0, 255), -1)
-        cv2.putText(
-            frame,
-            "CLICK!",
-            (w - 110, 28),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (0, 0, 255),
-            2,
-        )
+    # Action badge indicators in header
+    badge_x = w - 260
+    if actions.get("clicked"):
+        cv2.circle(frame, (badge_x, 22), 9, (0, 0, 255), -1)
+        cv2.putText(frame, "CLICK", (badge_x + 14, 27), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255), 2)
+    elif actions.get("right_clicked"):
+        cv2.circle(frame, (badge_x, 22), 9, (255, 0, 255), -1)
+        cv2.putText(frame, "R-CLICK", (badge_x + 14, 27), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 0, 255), 2)
+    elif actions.get("scrolled"):
+        cv2.putText(frame, "SCROLL", (badge_x, 27), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 0), 2)
+    elif actions.get("drag_started") or status == "FIST":
+        cv2.putText(frame, "DRAGGING", (badge_x, 27), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 165, 255), 2)
+    elif actions.get("precision"):
+        cv2.putText(frame, "PRECISION", (badge_x, 27), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 200, 0), 2)
 
 
 def main():
-    print("=" * 60)
-    print("  GestureGlide  —  Finger Mouse Control Prototype")
-    print("=" * 60)
-    print("  [Controls]")
-    print("    - Move index finger in front of camera to glide cursor")
-    print("    - Pinch (thumb + index tip) to trigger mouse click")
-    print("    - Press 't' to toggle between Free Tracking and Strict Mode")
-    print("    - Press ESC or 'q' in debug window to quit")
-    print("=" * 60)
+    print("=" * 65)
+    print("  GestureGlide v0.2 — Full Gesture Vocabulary")
+    print("=" * 65)
+    print("  [Gesture Controls]")
+    print("    - Point (Index extended)         -> Glide cursor")
+    print("    - Pinch (Thumb + Index)          -> Left Click")
+    print("    - Right Pinch (Thumb + Middle)   -> Right Click")
+    print("    - Open Palm (Move Up/Down)       -> Scroll")
+    print("    - Closed Fist                    -> Drag & Drop")
+    print("    - Peace Sign (V)                 -> Precision Mode (0.3x speed)")
+    print("    - Press ESC or 'q' in window     -> Quit")
+    print("=" * 65)
 
     tracker = HandTracker()
     mouse = MouseController()
+    engine = GestureEngine()
+    dispatcher = ActionDispatcher(mouse)
 
     print(f"Screen resolution: {mouse.screen_size[0]} x {mouse.screen_size[1]}")
     print(f"Opening webcam (Camera Index: {config.CAMERA_INDEX})...")
@@ -170,17 +188,15 @@ def main():
                 cv2.setWindowProperty(config.DEBUG_WINDOW_NAME, cv2.WND_PROP_TOPMOST, 1)
             except Exception:
                 pass
-        print(f"\n🖥️  DEBUG HUD WINDOW ACTIVE: Look for '{config.DEBUG_WINDOW_NAME}' on your screen!")
-        print("   (It is set to float on top so you can see live tracking & camera feed)")
+        print(f"\n🖥️  DEBUG HUD WINDOW ACTIVE: '{config.DEBUG_WINDOW_NAME}'")
 
     print("\nTracking loop started. Live logs appearing below:")
-    print("-" * 60)
+    print("-" * 65)
 
     last_log_time = 0.0
     frame_count = 0
     fps_start_time = time.time()
     current_fps = 0.0
-    always_track = config.ALWAYS_TRACK_HAND
 
     try:
         while True:
@@ -190,9 +206,10 @@ def main():
                 time.sleep(0.05)
                 continue
 
+            now = time.time()
+
             # Calculate FPS
             frame_count += 1
-            now = time.time()
             if now - fps_start_time >= 1.0:
                 current_fps = frame_count / (now - fps_start_time)
                 frame_count = 0
@@ -207,22 +224,30 @@ def main():
 
             status = "NO HAND"
             cursor_pos = None
-            clicking = False
             diag = None
+            actions = {
+                "moved": False,
+                "clicked": False,
+                "right_clicked": False,
+                "scrolled": False,
+                "drag_started": False,
+                "drag_stopped": False,
+                "precision": False,
+                "cursor_pos": None,
+                "gesture_name": "none",
+            }
 
             if landmarks is not None:
                 diag = get_diagnostics(landmarks)
-                should_move = always_track or diag["is_pointing"]
+                event = engine.update(landmarks)
+                actions = dispatcher.dispatch(event, now)
 
-                if should_move:
-                    status = "GLIDING" if always_track else "POINTING"
-                    tip_x, tip_y = diag["tip_pos"]
-                    cursor_pos = mouse.move_direct(tip_x, tip_y)
-
-                    if diag["is_pinching"]:
-                        clicking = mouse.click()
-                else:
-                    status = "HAND DETECTED"
+                gesture_name = event.gesture.value.upper()
+                status = gesture_name if gesture_name != "NONE" else "HAND DETECTED"
+                cursor_pos = actions.get("cursor_pos")
+            else:
+                event = engine.update(None)
+                actions = dispatcher.dispatch(event, now)
 
             # Periodic Terminal Logging
             if now - last_log_time >= config.TERMINAL_LOG_INTERVAL:
@@ -231,22 +256,31 @@ def main():
 
                 if landmarks is None:
                     print(f"[{timestamp}] ❌ [NO HAND] Hand not seen by camera...")
-                elif should_move:
-                    click_str = " | 💥 CLICK!" if clicking else ""
-                    print(
-                        f"[{timestamp}] 🟢 [{status}] Finger: ({diag['tip_pos'][0]:.2f}, {diag['tip_pos'][1]:.2f}) "
-                        f"-> Cursor: {cursor_pos} | Pinch: {diag['pinch_dist']:.3f} | FPS: {current_fps:.0f}{click_str}"
-                    )
                 else:
+                    action_str = ""
+                    if actions["clicked"]:
+                        action_str += " | 🖱️ LEFT CLICK"
+                    if actions["right_clicked"]:
+                        action_str += " | 🖱️ RIGHT CLICK"
+                    if actions["scrolled"]:
+                        action_str += " | 📜 SCROLL"
+                    if actions["drag_started"]:
+                        action_str += " | ✊ DRAG START"
+                    if actions["drag_stopped"]:
+                        action_str += " | 🖐️ DRAG END"
+                    if actions["precision"]:
+                        action_str += " | 🎯 PRECISION"
+
+                    fingers_cnt = diag.get("extended_finger_count", 0) if diag else 0
                     print(
-                        f"[{timestamp}] 🟡 [HAND DETECTED] IndexRatio: {diag['index_ratio']:.2f} "
-                        f"(Strict mode: need >= {config.FINGER_EXTENDED_RATIO} to move)"
+                        f"[{timestamp}] 🟢 [{status}] Fingers: {fingers_cnt} "
+                        f"-> Cursor: {cursor_pos} | FPS: {current_fps:.0f}{action_str}"
                     )
 
             # Debug UI HUD
             if config.SHOW_DEBUG_WINDOW:
                 tracker.draw_landmarks(frame, results)
-                draw_hud(frame, status, cursor_pos, clicking, diag, current_fps, always_track)
+                draw_hud(frame, status, cursor_pos, actions, diag, current_fps)
                 cv2.imshow(config.DEBUG_WINDOW_NAME, frame)
 
             # Keyboard commands
@@ -254,10 +288,6 @@ def main():
             if key == 27 or key == ord("q"):
                 print("\nQuit command received.")
                 break
-            elif key == ord("t"):
-                always_track = not always_track
-                mode_str = "Free Tracking (All hand gestures move cursor)" if always_track else "Strict Pointing Mode"
-                print(f"\n[MODE TOGGLE] Switched to: {mode_str}\n")
 
     finally:
         cap.release()

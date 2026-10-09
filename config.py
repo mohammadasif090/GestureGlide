@@ -26,6 +26,26 @@ FINGER_CURLED_RATIO = 1.20
 # If True, requires middle, ring, pinky to be curled. If False, only requires index to be extended.
 REQUIRE_OTHER_FINGERS_CURLED = False
 
+# --- Gesture Engine (v0.2) ---
+# Scroll: open palm (all fingers extended) + vertical hand movement
+SCROLL_SPEED = 5                   # Scroll lines per frame of detected scroll motion
+SCROLL_MIN_MOVEMENT = 0.01        # Min normalized vertical movement to trigger scroll
+SCROLL_PALM_MIN_FINGERS = 4       # Min extended fingers to count as "open palm"
+
+# Right-click: thumb + middle finger pinch
+RIGHT_CLICK_THRESHOLD = 0.045     # Same style as PINCH_THRESHOLD but for thumb+middle
+RIGHT_CLICK_COOLDOWN = 0.5
+
+# Drag: closed fist gesture
+DRAG_FIST_MAX_EXTENDED = 1        # Max extended fingers to count as "fist" (0 or 1 ok)
+
+# Precision mode: peace sign (index + middle extended, others curled)
+PRECISION_SPEED_FACTOR = 0.3      # Multiply cursor movement speed in precision mode
+
+# Gesture state machine
+GESTURE_HOLD_FRAMES = 3           # Frames a gesture must be stable before activating
+GESTURE_RELEASE_FRAMES = 5        # Frames after gesture lost before deactivating
+
 # --- Logging ---
 TERMINAL_LOG_INTERVAL = 0.5  # Seconds between terminal log updates
 

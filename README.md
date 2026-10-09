@@ -57,13 +57,16 @@ python main.py
 
 ---
 
-## 🎮 Controls & Gestures
+## 🎮 Controls & Gesture Vocabulary (v0.2)
 
 | Gesture / Action | Result |
 | :--- | :--- |
-| **Move Index Finger** | Glides mouse cursor across your desktop |
-| **Pinch (Thumb + Index)** | Performs a left mouse click |
-| **Press `t`** | Toggles between **Free Tracking** and **Strict Pointing** mode |
+| **Point (Index extended)** | Glides mouse cursor across your desktop |
+| **Pinch (Thumb + Index)** | Performs a standard left mouse click |
+| **Right Pinch (Thumb + Middle)** | Performs a right mouse click (opens context menus) |
+| **Open Palm (Move Up/Down)** | Smooth vertical scroll |
+| **Closed Fist** | Grabs and drags objects / windows (mouse down until fist releases) |
+| **Peace Sign (V)** | Precision Mode (reduces cursor speed to 0.3x for fine targeting) |
 | **Press `ESC` or `q`** | Closes camera feed and exits the program |
 
 ---
@@ -77,8 +80,10 @@ GestureGlide/
 │   ├── demo.mp4         # Full demonstration video recording
 │   └── demo.png         # Live demonstration screenshot
 ├── main.py              # Main application loop, HUD rendering, and keyboard handling
+├── gesture_engine.py    # Temporal state machine for stable gesture classification
+├── actions.py           # Action dispatcher translating gestures to OS-level events
 ├── hand_tracker.py      # MediaPipe Tasks HandLandmarker wrapper & auto-downloader
-├── gesture.py           # Gesture recognition, finger extension ratios & pinch detection
+├── gesture.py           # Geometric landmark calculations & pose diagnostics
 ├── mouse_control.py     # OS mouse movement, EMA smoothing & Win32/PyAutoGUI bindings
 ├── config.py            # Centralized settings (thresholds, smoothing, camera config)
 ├── requirements.txt     # Python package dependencies
